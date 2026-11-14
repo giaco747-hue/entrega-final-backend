@@ -1,23 +1,28 @@
 import mongoose from 'mongoose';
 
+const bookingCollection = 'bookings';
+
 const bookingSchema = new mongoose.Schema({
+    // Datos de la reserva 
     clientName: { type: String, required: true },
-    date: { type: Date, required: true },
+    email: { type: String, required: true },
+    date: { type: String, required: true },
+    time: { type: String, required: true },
     status: { type: String, default: 'pending' },
-    services: [{
-        service: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Service',
-            required: true
-        },
-        quantity: {
-            type: Number,
-            required: true,
-            default: 1
+    
+   
+    services: [
+        {
+            service: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'services' 
+            },
+            quantity: {
+                type: Number,
+                default: 1
+            }
         }
-    }]
-}, {
-    timestamps: true
+    ]
 });
 
-export const BookingModel = mongoose.model('Booking', bookingSchema);
+export const BookingModel = mongoose.model(bookingCollection, bookingSchema);

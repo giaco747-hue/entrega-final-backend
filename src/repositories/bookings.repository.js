@@ -6,15 +6,16 @@ export default class BookingsRepository {
     async getBookings(query = {}) {
         return await dao.getBookings(query);
     }
+
     async create(bookingData) {
-        return await dao.create(bookingData);
+        return await dao.createBooking(bookingData);
     }
 
     async getById(id) {
-        return await dao.getById(id);
+        return await dao.getBookingById(id);
     }
 
-    async update(id, updateData) {
-        return await dao.update(id, updateData);
+    async update(id, updatedData) {
+        return await dao.updateBooking(id, updatedData);
     }
 }

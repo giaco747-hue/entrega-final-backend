@@ -1,23 +1,26 @@
 import { ServiceModel } from '../models/service.model.js';
 
-export default class ServicesDao {
-    async getAll() {
-        return await ServiceModel.find();
+export default class ServicesDAO {
+    
+    // NUEVO MÉTODO: Ahora usa paginate() y acepta filtros y opciones
+    async getServices(filter = {}, options = {}) {
+        return await ServiceModel.paginate(filter, options);
     }
 
-    async getById(id) {
+    // MÉTODOS CLÁSICOS
+    async getServiceById(id) {
         return await ServiceModel.findById(id);
     }
 
-    async create(serviceData) {
+    async createService(serviceData) {
         return await ServiceModel.create(serviceData);
     }
 
-    async update(id, updateData) {
-        return await ServiceModel.findByIdAndUpdate(id, updateData, { new: true });
+    async updateService(id, serviceData) {
+        return await ServiceModel.findByIdAndUpdate(id, serviceData, { new: true });
     }
 
-    async delete(id) {
+    async deleteService(id) {
         return await ServiceModel.findByIdAndDelete(id);
     }
 }

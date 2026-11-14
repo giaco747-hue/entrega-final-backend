@@ -1,12 +1,32 @@
 import ServicesService from '../services/services.service.js';
 
-
 const servicesService = new ServicesService();
 
 export const getServices = async (req, res) => {
     try {
-        // Le pasamos el req.query al service para que él aplique los filtros
-        const services = await servicesService.getServices(req.query);
+       
+        const { category, available, page = 1, limit = 10, sortBy, order } = req.query;
+        
+        // 2. Construimos el objeto de filtros para MongoDB
+        const filter = {};
+        if (category) filter.category = category;
+        if (available !== undefined) filter.available = available === 'true'; 
+
+        
+        const options = {
+            page: parseInt(page, 10),
+            limit: parseInt(limit, 10),
+        };
+
+        if (sortBy) {
+            
+            options.sort = { [sortBy]: order === 'desc' ? -1 : 1 };
+        }
+
+       
+        const services = await servicesService.getServices(filter, options);
+        
+        
         res.status(200).json(services);
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener los servicios' });
@@ -39,12 +59,12 @@ export const createService = async (req, res) => {
         
         const createdService = await servicesService.createService(req.body);
         
-        // --- NUEVO CÓDIGO PARA SOCKET.IO ---
-        // Obtenemos la lista actualizada y la enviamos a todos los navegadores conectados
-      const io = req.app.get('socketio');
-const updatedServices = await servicesService.getServices({}); 
-io.emit('updateServices', updatedServices);
-        // -----------------------------------
+        // --- SOCKET.IO ---
+        const io = req.app.get('socketio');
+        // Pedimos los servicios (con un límite alto para la vista) y extraemos .docs para no romper el frontend
+        const paginatedServices = await servicesService.getServices({}, { limit: 100, page: 1 }); 
+        io.emit('updateServices', paginatedServices.docs);
+        // -----------------
 
         res.status(201).json(createdService);
     } catch (error) {
@@ -60,9 +80,13 @@ export const updateService = async (req, res) => {
         if (!updatedService) {
             return res.status(404).json({ error: 'Servicio no encontrado' });
         }
+        
+        // --- SOCKET.IO ---
         const io = req.app.get('socketio');
-    const updatedServices = await servicesService.getServices({}); 
-    io.emit('updateServices', updatedServices);
+        const paginatedServices = await servicesService.getServices({}, { limit: 100, page: 1 }); 
+        io.emit('updateServices', paginatedServices.docs);
+        // -----------------
+        
         res.status(200).json(updatedService);
     } catch (error) {
         res.status(500).json({ error: 'Error al actualizar el servicio' });
@@ -77,9 +101,13 @@ export const deleteService = async (req, res) => {
         if (!deletedService) {
             return res.status(404).json({ error: 'Servicio no encontrado' });
         }
+        
+        // --- SOCKET.IO ---
         const io = req.app.get('socketio');
-    const updatedServices = await servicesService.getServices({}); 
-    io.emit('updateServices', updatedServices);
+        const paginatedServices = await servicesService.getServices({}, { limit: 100, page: 1 }); 
+        io.emit('updateServices', paginatedServices.docs);
+        // -----------------
+        
         res.status(200).json({ message: 'Servicio eliminado correctamente', service: deletedService });
     } catch (error) {
         res.status(500).json({ error: 'Error al eliminar el servicio' });

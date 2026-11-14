@@ -1,37 +1,29 @@
-import ServicesRepository from '../repositories/services.repository.js';
-
-const repository = new ServicesRepository();
+import ServicesDAO from '../dao/services.dao.js';
 
 export default class ServicesService {
-    async getServices(query) {
-        let services = await repository.getAll();
-        
-        // Reglas de negocio y filtros
-        if (query.category) {
-            services = services.filter(s => s.category === query.category);
-        }
-        if (query.available) {
-            const isAvailable = query.available === 'true';
-            services = services.filter(s => s.available === isAvailable);
-        }
-        
-        return services;
+    constructor() {
+        this.servicesDao = new ServicesDAO();
     }
 
+    // NUEVO MÉTODO: Recibe los filtros y opciones de paginación y los pasa al DAO
+    async getServices(filter = {}, options = {}) {
+        return await this.servicesDao.getServices(filter, options);
+    }
+
+    // MÉTODOS CLÁSICOS: Se mantienen intactos
     async getServiceById(id) {
-        return await repository.getById(id);
+        return await this.servicesDao.getServiceById(id);
     }
 
     async createService(serviceData) {
-        // La validación de campos obligatorios la dejaremos en el controller
-        return await repository.create(serviceData);
+        return await this.servicesDao.createService(serviceData);
     }
 
-    async updateService(id, updateData) {
-        return await repository.update(id, updateData);
+    async updateService(id, serviceData) {
+        return await this.servicesDao.updateService(id, serviceData);
     }
 
     async deleteService(id) {
-        return await repository.delete(id);
+        return await this.servicesDao.deleteService(id);
     }
 }
