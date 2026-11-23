@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
 // 1. Esquema para CREAR un servicio (POST /api/services)
@@ -40,7 +39,11 @@ export const createBookingSchema = z.object({
     ).optional()
 });
 
-// 4. Esquemas para AGREGAR SERVICIO A RESERVA (POST /api/bookings/:bid/services/:sid)
+// 4. Esquemas para RUTAS DE RESERVAS Y SERVICIOS ASOCIADOS
+export const bookingIdParamSchema = z.object({
+    bid: z.string().regex(objectIdRegex, 'El ID de la reserva (bid) no es un ObjectId válido')
+});
+
 export const addServiceToBookingParamsSchema = z.object({
     bid: z.string().regex(objectIdRegex, 'El ID de la reserva (bid) no es un ObjectId válido'),
     sid: z.string().regex(objectIdRegex, 'El ID del servicio (sid) no es un ObjectId válido')
@@ -49,3 +52,9 @@ export const addServiceToBookingParamsSchema = z.object({
 export const addServiceToBookingBodySchema = z.object({
     quantity: z.number({ invalid_type_error: 'La cantidad debe ser un número' }).int('La cantidad debe ser un número entero').positive('La cantidad debe ser mayor a 0').optional()
 }).optional();
+
+export const updateServiceQuantitySchema = z.object({
+    quantity: z.number({ required_error: 'La cantidad es obligatoria', invalid_type_error: 'La cantidad debe ser un número' })
+        .int('La cantidad debe ser un número entero')
+        .positive('La cantidad debe ser mayor a 0')
+});

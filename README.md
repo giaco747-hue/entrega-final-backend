@@ -1,134 +1,106 @@
 # Sistema Backend de Turnos y Reservas
 
-API REST desarrollada con Node.js, Express y MongoDB (Mongoose) bajo una arquitectura estricta en N-Capas (`Router ➔ Controller ➔ Service ➔ DAO`). Incorpora consultas avanzadas con paginación, validaciones de entrada con Zod, relaciones entre colecciones con `populate`, renderizado de vistas con Handlebars y actualización en tiempo real con Socket.io.
+API backend completa para gestionar servicios disponibles y reservas de turnos, desarrollada con arquitectura en N-capas, persistencia en MongoDB Atlas, consultas avanzadas con paginación y filtros, relaciones mediante `ObjectId` y `populate`, validaciones con Zod, vistas dinámicas con Handlebars y actualizaciones en tiempo real con Socket.io.
 
-## Instalación y Arranque
+## Tecnologías utilizadas
 
-1. Clonar el repositorio público.
-2. Instalar las dependencias ejecutando:
+- **Node.js** (Entorno de ejecución con soporte ESM `import`/`export`)
+- **Express** (Framework web y enrutamiento REST)
+- **MongoDB Atlas** (Base de datos NoSQL en la nube)
+- **Mongoose** (ODM, modelado de esquemas, paginación y `populate`)
+- **Zod** (Validación de esquemas de entrada en `body` y `params`)
+- **Handlebars (`express-handlebars`)** (Motor de plantillas para vistas)
+- **Socket.io** (Comunicación bidireccional en tiempo real mediante WebSockets)
+- **Dotenv** (Gestión de variables de entorno)
+
+## Instalación
+
+1. Clonar el repositorio:
+   ```bash
+   git clone [https://github.com/giaco747-hue/entrega-final-backend.git](https://github.com/giaco747-hue/entrega-final-backend.git)
+   cd entrega-final-backend
+   ```
+
+2. Instalar las dependencias del proyecto:
    ```bash
    npm install
    ```
-3. Crear un archivo `.env` en la raíz del proyecto tomando como referencia `.env.example` y configurar la cadena de conexión a MongoDB y el puerto del servidor (`PORT=8080`).
-4. Iniciar el servidor en modo desarrollo:
-   ```bash
-   npm run dev
-   ```
 
----
+## Variables de entorno
 
-## 1. Consultas Avanzadas en Servicios (`GET /api/services`)
+Crear un archivo `.env` en la raíz del proyecto tomando como referencia el archivo `.env.example` incluido en el repositorio:
 
-El endpoint de listado de servicios soporta filtros dinámicos, paginación y ordenamiento mediante *query params*:
-
-* `category`: Filtra por categoría exacta (ej. `mecanica`, `estetica`).
-* `available`: Filtra por disponibilidad (`true` o `false`).
-* `page`: Número de página a consultar (por defecto `1`).
-* `limit`: Cantidad de resultados por página (por defecto `10`).
-* `sortBy`: Campo por el cual ordenar (ej. `price`, `duration`, `name`).
-* `order`: Dirección del ordenamiento (`asc` para ascendente, `desc` para descendente).
-
-### Ejemplos de uso
-* **Filtrar por categoría y disponibilidad:**
-  `GET http://localhost:8080/api/services?category=mecanica&available=true`
-* **Paginar y ordenar por precio ascendente:**
-  `GET http://localhost:8080/api/services?page=1&limit=5&sortBy=price&order=asc`
-* **Consulta combinada completa:**
-  `GET http://localhost:8080/api/services?category=mecanica&available=true&page=1&limit=5&sortBy=price&order=desc`
-
-### Estructura de respuesta (Metadatos de paginación)
-```json
-{
-  "docs": [
-    {
-      "_id": "6734a1b2c3d4e5f6a7b8c9d0",
-      "name": "Alineación y Balanceo",
-      "category": "mecanica",
-      "description": "Ajuste completo de tren delantero y balanceo de ruedas",
-      "duration": 60,
-      "price": 120,
-      "available": true
-    }
-  ],
-  "totalDocs": 12,
-  "limit": 5,
-  "totalPages": 3,
-  "page": 1,
-  "pagingCounter": 1,
-  "hasPrevPage": false,
-  "hasNextPage": true,
-  "prevPage": null,
-  "nextPage": 2
-}
+```env
+PORT=8080
+APP_NAME=Sistema Backend de Turnos y Reservas
+APP_ENV=development
+MONGO_URI=tu_uri_de_mongodb
 ```
 
----
+> **Nota:** El archivo `.env` contiene credenciales sensibles y está excluido del control de versiones mediante `.gitignore`.
 
-## 2. Validaciones Aplicadas con Zod
+## Ejecución
 
-Las validaciones se ejecutan mediante el middleware `validateSchema` (`src/middlewares/validator.middleware.js`) y los esquemas definidos en `src/validators/schemas.js`, interceptando los datos antes de alcanzar el controlador o MongoDB. Si algún campo es inválido o falta, la API responde inmediatamente con código **`400 Bad Request`**.
+Para iniciar el servidor en modo desarrollo (con recarga automática):
 
-### Endpoints protegidos
-1. **Crear servicio (`POST /api/services`):** Valida `name` (mín. 2 caracteres), `category` (mín. 2 caracteres), `description` (mín. 5 caracteres), `duration` (número positivo), `price` (número mayor o igual a 0) y `available` (booleano).
-2. **Actualizar servicio (`PUT /api/services/:sid`):** Valida los tipos de los campos enviados y exige que al menos un campo válido esté presente en el cuerpo de la petición.
-3. **Crear reserva (`POST /api/bookings`):** Valida `clientName` (mín. 2 caracteres), `email` (formato de correo válido), `date` (string no vacío), `time` (string no vacío), `status` (`pending`, `confirmed` o `cancelled`) y el arreglo opcional `services` con formato `ObjectId`.
-4. **Agregar servicio a reserva (`POST /api/bookings/:bid/services/:sid`):** Valida en los parámetros de ruta que tanto `:bid` como `:sid` tengan formato válido de `ObjectId` de MongoDB (24 caracteres hexadecimales), y opcionalmente `quantity` (entero positivo) en el cuerpo.
-
-### Ejemplo de respuesta ante error de validación (`400 Bad Request`)
-```json
-{
-  "error": "Error de validación en los datos enviados",
-  "details": [
-    {
-      "field": "email",
-      "message": "El formato del email no es válido"
-    }
-  ]
-}
+```bash
+npm run dev
 ```
 
----
+Para iniciar el servidor en modo producción:
 
-## 3. Modelo de Reservas y Consulta con `populate`
-
-En la colección `bookings`, los servicios asociados no se duplican como objetos completos; se almacenan exclusivamente como referencias mediante su `ObjectId` y cantidad (`{ service: ObjectId, quantity: Number }`).
-
-### Consultar una reserva con servicios completos (`GET /api/bookings/:bid`)
-Al consultar una reserva por su ID, el DAO aplica `.populate('services.service')` para resolver las referencias y devolver los datos completos de cada servicio junto con la información de la reserva.
-
-* **Petición:**
-  `GET http://localhost:8080/api/bookings/6734b9e8f1a2b3c4d5e6f7a8`
-
-* **Respuesta (`200 OK`):**
-```json
-{
-  "_id": "6734b9e8f1a2b3c4d5e6f7a8",
-  "clientName": "Juan Pérez",
-  "email": "juan.perez@example.com",
-  "date": "2026-11-20",
-  "time": "10:30",
-  "status": "pending",
-  "services": [
-    {
-      "_id": "6734ba10f1a2b3c4d5e6f7b1",
-      "service": {
-        "_id": "6734a1b2c3d4e5f6a7b8c9d0",
-        "name": "Alineación y Balanceo",
-        "category": "mecanica",
-        "description": "Ajuste completo de tren delantero y balanceo de ruedas",
-        "duration": 60,
-        "price": 120,
-        "available": true
-      },
-      "quantity": 1
-    }
-  ]
-}
+```bash
+npm start
 ```
 
----
+El servidor quedará escuchando por defecto en `http://localhost:8080`.
 
-## 4. Vistas y Tiempo Real (Handlebars + Socket.io)
+## Endpoints principales
 
-* **Vista de Servicios:** `http://localhost:8080/views/services`
-* **Vista de Reservas:** `http://localhost:8080/views/availability`
+### Servicios (`/api/services`)
+
+| Método | Endpoint | Descripción |
+| :--- | :--- | :--- |
+| `GET` | `/api/services` | Lista servicios con filtros (`category`, `available`), paginación (`page`, `limit`) y ordenamiento (`sortBy`, `order`). |
+| `GET` | `/api/services/:sid` | Obtiene el detalle de un servicio por su `ObjectId`. |
+| `POST` | `/api/services` | Crea un nuevo servicio (validado con Zod) y notifica vía Socket.io. |
+| `PUT` | `/api/services/:sid` | Actualiza los datos o disponibilidad de un servicio y notifica vía Socket.io. |
+| `DELETE` | `/api/services/:sid` | Elimina un servicio por su `ObjectId` y notifica vía Socket.io. |
+
+**Ejemplo de consulta avanzada:**
+```text
+GET http://localhost:8080/api/services?category=general&available=true&page=1&limit=5&sortBy=price&order=asc
+```
+
+### Reservas (`/api/bookings`)
+
+| Método | Endpoint | Descripción |
+| :--- | :--- | :--- |
+| `GET` | `/api/bookings` | Lista todas las reservas con sus servicios poblados mediante `populate`. |
+| `GET` | `/api/bookings/:bid` | Obtiene una reserva por `ObjectId` expandiendo los datos completos de cada servicio (`populate`). |
+| `POST` | `/api/bookings` | Crea una nueva reserva (validada con Zod). |
+| `POST` | `/api/bookings/:bid/services/:sid` | Asocia un servicio existente por `ObjectId` a una reserva (incrementa `quantity` si ya existe). |
+| `PUT` | `/api/bookings/:bid/services/:sid` | Actualiza la cantidad (`quantity`) de un servicio dentro de una reserva. |
+| `DELETE` | `/api/bookings/:bid/services/:sid` | Elimina un servicio puntual de una reserva. |
+| `DELETE` | `/api/bookings/:bid` | Elimina una reserva completa por su `ObjectId`. |
+
+### Vistas Web (Handlebars + Socket.io)
+
+| Método | Ruta | Descripción |
+| :--- | :--- | :--- |
+| `GET` | `/views/services` | Vista web con el listado de servicios registrados en MongoDB Atlas. |
+| `GET` | `/views/availability` | Vista en tiempo real conectada a Socket.io que actualiza servicios y disponibilidad sin recargar. |
+
+## Funcionalidades
+
+- **Arquitectura en N-Capas:** Separación estricta de responsabilidades siguiendo el flujo `Routes ➔ Middlewares/Validators ➔ Controllers ➔ Services ➔ Repositories ➔ DAO ➔ Models`.
+- **CRUD completo de Servicios y Reservas:** Operaciones completas de creación, lectura, actualización y eliminación con manejo de errores HTTP (`200`, `201`, `400`, `404`, `500`).
+- **Relaciones y `populate`:** Las reservas almacenan referencias (`ObjectId` + `quantity`) hacia la colección de servicios y resuelven sus datos completos al consultar.
+- **Consultas avanzadas:** Filtrado dinámico por categoría y disponibilidad, ordenamiento ascendente/descendente y metadatos de paginación (`totalDocs`, `limit`, `page`, `totalPages`, `hasPrevPage`, `hasNextPage`).
+- **Validaciones con Zod:** Middleware reutilizable que valida tanto cuerpos de petición (`body`) como identificadores de ruta (`params`) antes de llegar a los controladores.
+- **Tiempo real con WebSockets:** Emisión automática de eventos Socket.io al crear, actualizar o eliminar servicios y reservas.
+
+## Notas adicionales
+
+- Para probar los endpoints de la API se recomienda utilizar **Thunder Client** o **Postman** enviando los payloads en formato `application/json`.
+- El proyecto cumple con las buenas prácticas de seguridad manteniendo `.env` y `node_modules/` fuera del repositorio e incluyendo `.env.example` como plantilla de configuración.
